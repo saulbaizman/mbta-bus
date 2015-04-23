@@ -5,7 +5,7 @@
     <script src="https://maps.google.com/maps/api/js?sensor=false" type="text/javascript"></script>
     <style type="text/css">
         body {
-            font-family: "Helvetica Neue", sans-serif ;
+            font-family: "Helvetica Neue", Helvetica, sans-serif ;
         }
         .popular_routes {
             font-size: 1.5em ;
@@ -22,6 +22,12 @@
             text-transform: lowercase;
             color: #777 ;
         }
+        #marker_legend {
+            margin-top: 1em ;
+        }
+        .legend_label {
+            padding-right: 1em ;
+        }
     </style>
 </head>
 
@@ -29,14 +35,34 @@
 <h1>MBTA Bus Tracker </h1>
 
 <div class="popular_routes">
-    <input type="checkbox" name="CT2" id="CT2" value="CT2" /> <label for="CT2">CT2</label>
-    <input type="checkbox" name="87" id="87" value="87" class="left_padding" /> <label for="87">87</label>
-    <input type="checkbox" name="88" id="88" value="88" class="left_padding" /> <label for="88">88</label>
-    <input type="checkbox" name="85" id="85" value="85" class="left_padding" /> <label for="85">85</label>
-    <input type="checkbox" name="91" id="91" value="91" class="left_padding" /> <label for="91">91</label>
-    <input type="checkbox" name="86" id="86" value="86" class="left_padding" /> <label for="86">86</label>
-    <input type="checkbox" name="47" id="47" value="47" class="left_padding" /> <label for="47">47</label>
-    <input type="checkbox" name="1" id="1" value="1" class="left_padding" /> <label for="1">1</label>
+    <script type="text/javascript">
+        var favorite_routes = [
+            { 'bus_id': '747', 'bus_name': 'CT2' },
+            { 'bus_id':  '87', 'bus_name':  '87' },
+            { 'bus_id':  '88', 'bus_name':  '88' },
+            { 'bus_id':  '85', 'bus_name':  '85' },
+            { 'bus_id':  '91', 'bus_name':  '91' },
+            { 'bus_id':  '86', 'bus_name':  '86' },
+            { 'bus_id':  '47', 'bus_name':  '47' },
+            { 'bus_id':   '1', 'bus_name':   '1' },
+            { 'bus_id':  '39', 'bus_name':  '39' }
+        ] ;
+
+        for ( var route = 0 ; route < favorite_routes.length ; route++ ) {
+            if ( route != 0 ) {
+                var extra_css = ' class="left_padding"' ;
+            }
+            else
+            {
+                var extra_css = '' ;
+            }
+            var bus_route = '<input type="checkbox" name="' + favorite_routes[route].bus_id + '" id="' + favorite_routes[route].bus_name + '" value="' + favorite_routes[route].bus_id + '" ' + extra_css + ' /> <label for="' + favorite_routes[route].bus_name + '">' + favorite_routes[route].bus_name + '</label>' ;
+            document.write ( bus_route ) ;
+        }
+
+
+    </script>
+
     <select class="left_padding" id="option_list">
         <option value="">...or select a route</option>
     </select>
@@ -100,10 +126,10 @@
 
     // Markers
     var direction_data = [
-        { icon: "images/red-dot.png",
+        { icon: "images/_0021_ct2_red.png",
             line_color: "#FF0000" },
 
-        { icon: "images/blue-dot.png",
+        { icon: "images/_0020_ct2_blue.png",
             line_color: "#0000FF" },
 
         { icon: "images/green-dot.png",
@@ -126,8 +152,7 @@
     var stops = [];
     var lines = [];
     var open_info_window = null;
-
-    var map ; // global variable to hold the map.
+    var map ;
 
 
     $(document).ready(function() {
@@ -153,13 +178,19 @@
         map = new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
 
         // Attach event handler to pull-down menu.
-        $("select").on('change',updateMarkers);
+        $("select").on('change',function (event) {
+                    var $target = $(event.target) ;
+                    addRoute ( $target.val( ) ) ;
+                    // NOTE: changing the pull-down menu will not remove the old route from the map.
+                }
+        );
 
         // Update the markers any time the option box is changed, or
         // every 10 seconds.
-        setInterval(updateMarkers, 10000);
+        // FIXME: there's an issue with updateMarkers function; it removes the bus routes from the map after ~ 10 seconds
+//        setInterval(updateMarkers, 10000);
 
-        // Populate the route pull-down menu.
+        // Populate the route pull-down menu with the bus routes.
         populateRoutes () ;
 
     } ) ;
@@ -176,7 +207,7 @@
     }
 
     function resetMarkers() {
-        $("#marker_legend").empty();
+        // $("#marker_legend").empty();
 
         for (var id in buses) {
             buses[id].marker.setMap(null);
@@ -194,6 +225,8 @@
         lines = [];
     }
 
+    // FIXME: rewrite this function to refresh the markers.
+    /*
     function updateMarkers() {
         var old_route = route;
         route = $("select option:selected").val();
@@ -216,6 +249,54 @@
 
             placeVehicles();
         }
+    }
+    */
+
+    function addRoute( input_route ) {
+        var old_route = route;
+//        route = $("select option:selected").val();
+        route = input_route  ;
+        /*
+        if (route != old_route) {
+            resetMarkers();
+        }
+        */
+
+        if (route == "")
+            return;
+
+        if (!routes[route]) {
+            fetchRouteData();
+        } else {
+            if (route != old_route) {
+                for (var run_id in routes[route]) {
+                    placeStopsAndLines(run_id);
+                }
+            }
+
+            placeVehicles();
+        }
+    }
+
+    function removeRoute ( input_route ) {
+        // This removes all of the buses, which is not what we want.
+        // We only want to remove buses on a given route.
+        // We will need to revise the buses object to make this work.
+        for (var id in buses) {
+            buses[id].marker.setMap(null);
+        }
+        buses = {};
+
+        for (var i = 0; i < stops.length; i++) {
+            stops[i].setMap(null);
+        }
+        stops = [];
+
+        for (var i = 0; i < lines.length; i++) {
+            lines[i].setMap(null);
+        }
+        lines = [];
+
     }
 
     function fetchRouteData() {
@@ -240,7 +321,7 @@
                     direction_index++;
                 }
 
-                $("#marker_legend").append('<img src="' + run.direction_data.icon + '">' + run.display_name);
+                $("#marker_legend").append('<span class="legend_label"><img src="' + run.direction_data.icon + '"> ' + run.display_name + '</span>' );
 
                 routes[route][run.id] = run;
                 placeStopsAndLines(run.id);
@@ -268,51 +349,6 @@
                 });
 
                 marker.stop_id = stop.id;
-                marker.infoContent = '<h1>' + stop.display_name + '</h1>';
-                marker.infoContent += '<p>' + routes[route][run_id].display_name + '</p>';
-
-                google.maps.event.addListener(marker, "click", function() {
-                    var info_window = new google.maps.InfoWindow({
-                        content: this.infoContent,
-                    });
-
-                    var prediction_url = "https://proximobus.appspot.com/agencies/mbta/stops/" + this.stop_id + "/predictions.js?callback=?";
-                    $.getJSON(prediction_url, function(data) {
-                        if (data.items.length == 0)
-                            return;
-
-                        var content = info_window.getContent();
-                        content += "<p>Expected arrivals:";
-                        content += "<ul>";
-
-                        for (var i = 0; i < Math.min(5, data.items.length); i++) {
-                            var prediction = data.items[i];
-
-                            content += "<li>";
-                            if (prediction.seconds < 60)
-                                content += prediction.seconds + " seconds";
-                            else
-                                content += prediction.minutes + " minutes";
-
-                            content += "</li>";
-                        }
-
-                        content += "</ul></p>";
-
-                        info_window.setContent(content);
-                    });
-
-                    google.maps.event.addListener(info_window, "closeclick", function() {
-                        open_info_window = null;
-                    });
-
-                    if (open_info_window)
-                        open_info_window.close();
-                    open_info_window = info_window;
-
-                    info_window.open(map, this);
-                });
-
                 stops.push(marker);
                 stop_latlongs.push(latlong);
             }
@@ -356,26 +392,6 @@
                         icon: routes[route][run_id].direction_data.icon
                     });
 
-                    marker.infoContent = '<h1>Route ' + route + '</h1>';
-                    marker.infoContent += '<p>Bus ' + vehicle.id + '</p>';
-                    marker.infoContent += '<p>' + routes[route][run_id].display_name + '</p>';
-
-                    google.maps.event.addListener(marker, "click", function() {
-                        var info_window = new google.maps.InfoWindow({
-                            content: this.infoContent,
-                        });
-
-                        google.maps.event.addListener(info_window, "closeclick", function() {
-                            open_info_window = null;
-                        })
-
-                        if (open_info_window)
-                            open_info_window.close();
-                        open_info_window = info_window;
-
-                        info_window.open(map, this);
-                    });
-
                     bus = { marker: marker,
                         latlong: latlong,
                         run_id: run_id };
@@ -411,27 +427,22 @@
 
 <script type="text/javascript">
     $(":checkbox").on ('change', function (event) {
+
         var $target = $(event.target) ;
         var $target_id = $target.val() ;
 
         // is the given checkbox being checked or unchecked?
         if ( $target.is(":checked") ) {
-//              console.log (event.target.id + " is checked." ) ;
             // do stuff to draw route on the map
+            addRoute ( $target.val() )
         }
         else
         {
-//              console.log (event.target.id + " is UNchecked." ) ;
             // do stuff to remove route from the map
+            removeRoute ( $target.val() ) ;
         }
 
-//          console.log (event) ;
-//          console.log (event.which) ;
-//          console.log ("target id: " + event.target.id) ;
-//          console.log ($target.val()) ;
-
     }) ;
-
 
 </script>
 
