@@ -78,13 +78,15 @@
           map_canvas.style.width = '100%';
           map_canvas.style.height = '600px';
         }
-        
+
+        // Set default map options (zoom and center are required)
         var mapOptions = {
           zoom: 12,
           center: new google.maps.LatLng(42.357778, -71.061667),
           mapTypeId: google.maps.MapTypeId.ROADMAP
         };
-        
+
+          // Create the Google map in the #map_canvas
         var map = new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
         
         var direction_data = [
