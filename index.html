@@ -334,32 +334,26 @@
     function placeStopsAndLines(run_id) {
         var stops_url = "https://proximobus.appspot.com/agencies/mbta/routes/" + route + "/runs/" + run_id + "/stops.js?callback=?";
         $.getJSON(stops_url, function(data) {
-            var stop_latlongs = [];
+
+            var stop_latlongs = []; // array of lat + long coordinates of the bus stops.
             var bounds = new google.maps.LatLngBounds();
+
+            // Loop through the stops.
             for (var i = 0; i < data.items.length; i++) {
                 var stop = data.items[i];
                 var latlong = new google.maps.LatLng(stop.latitude, stop.longitude);
-
                 bounds.extend(latlong);
-
-                var marker = new google.maps.Marker({
-                    position: latlong,
-                    map: map,
-                    icon: "http://www.nextmuni.com/googleMap/images/stopMarkerRed.gif"
-                });
-
-                marker.stop_id = stop.id;
-                stops.push(marker);
                 stop_latlongs.push(latlong);
             }
 
+            // Draw a line based on the positions of the stops.
             var line = new google.maps.Polyline({
                 clickable: false,
                 geodesic: false,
                 map: map,
                 path: stop_latlongs,
                 strokeColor: routes[route][run_id].direction_data.line_color,
-                strokeOpacity: 0.35,
+                strokeOpacity: 0.2,
                 strokeWeight: 5
             });
             lines.push(line);
